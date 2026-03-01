@@ -232,6 +232,11 @@ export var MusicManager = /*#__PURE__*/ function () {
                 }
             }
         ];
+        this.synthPresetNames = [
+            'Clean Sine Wave',
+            'Buzzy Sawtooth',
+            'Funk Electric Piano'
+        ];
         this.currentSynthIndex = 0;
     }
     _create_class(MusicManager, [
@@ -411,6 +416,20 @@ export var MusicManager = /*#__PURE__*/ function () {
             key: "getAnalyser",
             value: function getAnalyser() {
                 return this.analyser;
+            }
+        },
+        {
+            // Get the current synth preset name
+            key: "getCurrentSynthName",
+            value: function getCurrentSynthName() {
+                return this.synthPresetNames[this.currentSynthIndex] || 'Unknown';
+            }
+        },
+        {
+            // Get all synth preset names
+            key: "getAllPresetNames",
+            value: function getAllPresetNames() {
+                return [...this.synthPresetNames];
             }
         }
     ]);
