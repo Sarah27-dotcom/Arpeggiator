@@ -103,13 +103,24 @@ export var UIManager = /*#__PURE__*/ function () {
             key: "handleStart",
             value: function handleStart() {
                 var _this = this;
-                if (this.game && this.game.musicManager) {
-                    this.game.musicManager.start().then(function () {
-                        _this.state.updateState({
-                            audioContextReady: true,
-                            menuVisible: false
-                        });
-                        _this.hudDashboard.show();
+                // First, initialize camera (requires user gesture)
+                if (this.game && this.game.startCamera) {
+                    this.game.startCamera().then(function () {
+                        // Camera ready, now start music
+                        if (_this.game.musicManager) {
+                            _this.game.musicManager.start().then(function () {
+                                _this.state.updateState({
+                                    audioContextReady: true,
+                                    menuVisible: false
+                                });
+                                _this.hudDashboard.show();
+                            });
+                        } else {
+                            _this.hudDashboard.show();
+                        }
+                    }).catch(function (err) {
+                        console.error('Camera init failed:', err);
+                        alert('Camera access denied. Please allow camera permission and refresh.');
                     });
                 } else {
                     this.hudDashboard.show();
