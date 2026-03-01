@@ -1,8 +1,0 @@
-{
-  "name": "arpeggiator",
-  "version": "1.0.0",
-  "main": "server/server.js",
-  "scripts": {
-    "dev": "node server/server.js"
-  }
-}

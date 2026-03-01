@@ -271,6 +271,7 @@ export var Game = /*#__PURE__*/ function () {
         };
         this.beatIndicatorGroup = null; // Group to hold all indicators for easy repositioning
         this.uiManager = null; // UI Manager instance, initialized externally
+        this.isMediaPipeInitialized = false; // Track camera initialization state
         this.labelColors = {
             evaPurple: {
                 r: 123,
@@ -339,21 +340,8 @@ export var Game = /*#__PURE__*/ function () {
                                 ];
                             case 1:
                                 _state.sent(); // Add asset loading step
-                                return [
-                                    4,
-                                    _this._setupHandTracking()
-                                ];
-                            case 2:
-                                _state.sent(); // This needs to complete before we can proceed
-                                // Ensure webcam is playing before starting game logic dependent on it
-                                return [
-                                    4,
-                                    _this.videoElement.play()
-                                ];
-                            case 3:
-                                _state.sent();
+                                // Camera initialization moved to startCamera() - will be called after user gesture
                                 window.addEventListener('resize', _this._onResize.bind(_this));
-                                _this._startGame(); // Start the game directly
                                 _this._setupEventListeners(); // Set up interaction listeners
                                 _this._animate(); // Start the animation loop (it will check state)
                                 return [
@@ -707,6 +695,39 @@ export var Game = /*#__PURE__*/ function () {
                                 _this._showError("Webcam/Hand Tracking Error: ".concat(error.message, ". Please allow camera access."));
                                 throw error; // Re-throw to stop initialization
                             case 5:
+                                return [
+                                    2
+                                ];
+                        }
+                    });
+                })();
+            }
+        },
+        {
+            key: "startCamera",
+            value: function startCamera() {
+                var _this = this;
+                return _async_to_generator(function () {
+                    return _ts_generator(this, function (_state) {
+                        switch (_state.label) {
+                            case 0:
+                                if (_this.isMediaPipeInitialized) {
+                                    return [2];
+                                }
+                                return [
+                                    4,
+                                    _this._setupHandTracking()
+                                ];
+                            case 1:
+                                _state.sent();
+                                return [
+                                    4,
+                                    _this.videoElement.play()
+                                ];
+                            case 2:
+                                _state.sent();
+                                _this.isMediaPipeInitialized = true;
+                                console.log("Camera initialized successfully");
                                 return [
                                     2
                                 ];
