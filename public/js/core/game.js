@@ -270,6 +270,7 @@ export var Game = /*#__PURE__*/ function () {
             off: new THREE.Color("#ffffff") // Off state remains white
         };
         this.beatIndicatorGroup = null; // Group to hold all indicators for easy repositioning
+        this.uiManager = null; // UI Manager instance, initialized externally
         this.labelColors = {
             evaPurple: {
                 r: 123,
@@ -1303,6 +1304,10 @@ export var Game = /*#__PURE__*/ function () {
                     if (this.waveformVisualizer) {
                         this.waveformVisualizer.update();
                     }
+                    // Update UI manager with current game state
+                    if (this.uiManager) {
+                        this.uiManager.updateFromGame(this._getUIState());
+                    }
                 }
                 this.renderer.render(this.scene, this.camera);
             }
@@ -1374,6 +1379,164 @@ export var Game = /*#__PURE__*/ function () {
                     }
                 });
                 console.log('Game event listeners set up.');
+            }
+        },
+        {
+            // Get UI state for UI manager updates
+            key: "_getUIState",
+            value: function _getUIState() {
+                var activeNotes = [];
+                var activeDrums = [];
+
+                // Extract active notes from music manager patterns
+                if (this.musicManager && this.musicManager.activePatterns) {
+                    this.musicManager.activePatterns.forEach(function (value, key) {
+                        activeNotes.push({
+                            handId: key,
+                            root: value.currentRoot
+                        });
+                    });
+                }
+
+                // Get active drums from drum manager
+                if (typeof drumManager !== 'undefined' && drumManager.getActiveDrums) {
+                    activeDrums = Array.from(drumManager.getActiveDrums());
+                }
+
+                return {
+                    gameState: this.gameState,
+                    audioContextReady: this.musicManager && this.musicManager.isStarted || false,
+                    cameraActive: this.videoElement && this.videoElement.readyState >= 2 || false,
+                    handsDetected: this.hands.filter(function (h) {
+                        return h.landmarks;
+                    }).length,
+                    transportPlaying: Tone.Transport.state === 'started',
+                    currentBPM: Tone.Transport.bpm.value || 100,
+                    synthPresetIndex: this.musicManager && this.musicManager.currentSynthIndex || 0,
+                    activeNotes: activeNotes,
+                    activeDrums: activeDrums,
+                    masterVolume: this.musicManager && this.musicManager.polySynth && this.musicManager.polySynth.volume ?
+                        Tone.dbToGain(this.musicManager.polySynth.volume.value) : 1.0,
+                    reverbWet: this.musicManager && this.musicManager.reverb && this.musicManager.reverb.wet ?
+                        this.musicManager.reverb.wet.value : 0.8,
+                    delayWet: this.musicManager && this.musicManager.stereoDelay && this.musicManager.stereoDelay.wet ?
+                        this.musicManager.stereoDelay.wet.value : 0.0,
+                    waveformEnabled: this.waveformVisualizer !== null,
+                    currentSynthName: this.musicManager && this.musicManager.getCurrentSynthName ?
+                        this.musicManager.getCurrentSynthName() : 'Unknown'
+                };
+            }
+        },
+        {
+            // Set tempo (BPM)
+            key: "setTempo",
+            value: function setTempo(bpm) {
+                Tone.Transport.bpm.value = bpm;
+                console.log("Tempo set to:", bpm);
+            }
+        },
+        {
+            // Set master volume
+            key: "setMasterVolume",
+            value: function setMasterVolume(volume) {
+                if (this.musicManager && this.musicManager.polySynth) {
+                    this.musicManager.polySynth.volume.value = Tone.gainToDb(volume);
+                    console.log("Master volume set to:", volume);
+                }
+            }
+        },
+        {
+            // Set reverb wet amount
+            key: "setReverbWet",
+            value: function setReverbWet(wet) {
+                if (this.musicManager && this.musicManager.reverb) {
+                    this.musicManager.reverb.wet.value = wet;
+                    console.log("Reverb wet set to:", wet);
+                }
+            }
+        },
+        {
+            // Set delay wet amount
+            key: "setDelayWet",
+            value: function setDelayWet(wet) {
+                if (this.musicManager && this.musicManager.stereoDelay) {
+                    this.musicManager.stereoDelay.wet.value = wet;
+                    console.log("Delay wet set to:", wet);
+                }
+            }
+        },
+        {
+            // Toggle waveform visualizer
+            key: "toggleWaveform",
+            value: function toggleWaveform(enabled) {
+                if (enabled && !this.waveformVisualizer && this.musicManager) {
+                    var analyser = this.musicManager.getAnalyser();
+                    if (analyser) {
+                        this.waveformVisualizer = new WaveformVisualizer(this.scene, analyser, this.renderDiv.clientWidth, this.renderDiv.clientHeight);
+                    }
+                } else if (!enabled && this.waveformVisualizer) {
+                    // Remove waveform visualizer
+                    this.waveformVisualizer.dispose();
+                    this.waveformVisualizer = null;
+                }
+                console.log("Waveform visualizer:", enabled ? "enabled" : "disabled");
+            }
+        },
+        {
+            // Toggle transport play/pause
+            key: "toggleTransport",
+            value: function toggleTransport() {
+                if (Tone.Transport.state === 'started') {
+                    Tone.Transport.pause();
+                    console.log("Transport paused");
+                } else {
+                    Tone.Transport.start();
+                    console.log("Transport started");
+                }
+            }
+        },
+        {
+            // Cycle synth preset
+            key: "cycleSynthPreset",
+            value: function cycleSynthPreset() {
+                if (this.musicManager) {
+                    this.musicManager.cycleSynth();
+                }
+            }
+        },
+        {
+            // Set specific synth preset
+            key: "setSynthPreset",
+            value: function setSynthPreset(index) {
+                if (!this.musicManager || !this.musicManager.polySynth) return;
+                if (index < 0 || index >= this.musicManager.synthPresets.length) return;
+                if (index === this.musicManager.currentSynthIndex) return;
+
+                // Stop all currently playing notes/arpeggios before swapping
+                var _this = this;
+                this.musicManager.activePatterns.forEach(function (value, key) {
+                    _this.musicManager.stopArpeggio(key);
+                });
+
+                // Dispose the old synth to free up resources
+                this.musicManager.polySynth.dispose();
+
+                // Set the new preset index
+                this.musicManager.currentSynthIndex = index;
+                var newPreset = this.musicManager.synthPresets[index];
+
+                // Create the new synth
+                this.musicManager.polySynth = new Tone.PolySynth(Tone.FMSynth, newPreset);
+                this.musicManager.polySynth.connect(this.musicManager.analyser);
+                this.musicManager.polySynth.volume.value = 0;
+
+                // Adjust global effects based on the new preset's settings
+                this.musicManager.reverb.wet.value = (newPreset.effects && newPreset.effects.reverbWet) !== undefined ?
+                    newPreset.effects.reverbWet : 0.8;
+                this.musicManager.stereoDelay.wet.value = (newPreset.effects && newPreset.effects.delayWet) !== undefined ?
+                    newPreset.effects.delayWet : 0.0;
+
+                console.log("Synth preset set to:", index);
             }
         }
     ]);
