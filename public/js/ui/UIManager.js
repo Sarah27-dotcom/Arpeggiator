@@ -106,7 +106,9 @@ export var UIManager = /*#__PURE__*/ function () {
                 // First, initialize camera (requires user gesture)
                 if (this.game && this.game.startCamera) {
                     this.game.startCamera().then(function () {
-                        // Camera ready, now start music
+                        // Camera ready, now start the game (sets gameState to 'tracking')
+                        _this.game._startGame();
+                        // Then start music
                         if (_this.game.musicManager) {
                             _this.game.musicManager.start().then(function () {
                                 _this.state.updateState({
